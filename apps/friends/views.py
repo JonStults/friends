@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, HttpResponse
 from django.contrib import messages
-from . import models
+from .models import Users, Friends
 import bcrypt
 import re
 
@@ -14,7 +14,7 @@ def login(request):
     enteredPW = request.POST['password_login']
 
     try:
-        user = models.Users.objects.get(email = email)
+        user = Users.objects.get(email = email)
 
     except:
         messages.warning(request, 'User does not exist!')
@@ -35,46 +35,55 @@ def register(request):
     confirm_pw = request.POST.get('confirm_pw')
     date_of_birth = request.POST.get('date_of_birth')
     EMAIL_REGEX = re.compile (r'^[a-zA-Z0-9.+_-]+@[a-zA-Z0-9._-]+\.[a-zA-Z]+$')
+    if len(name) < 1:
+        messages.warning(request, 'Registration must not be blank')
+        return redirect('/')
     if not EMAIL_REGEX.match(request.POST['email']):
-        messages.warning(request, 'Email is not a valid email!')
+        messages.warning(request, 'Email is not a valid email')
+        return redirect('/')
     if password != confirm_pw:
-        messages.warning(request, 'Passwords do not match!')
+        messages.warning(request, 'Passwords do not match')
         return redirect('/')
     if len(password) < 8:
-        message.warning(request, 'Password needs to be at least 8 characters long!')
+        messages.warning(request, 'Password needs to be at least 8 characters long')
         return redirect('/')
-
     else:
         password = bcrypt.hashpw(password.encode('UTF-8'), bcrypt.gensalt())
-        result = models.Users.objects.create(name = name, alias = alias, email = email, password = password, date_of_birth = date_of_birth)
+        result = Users.objects.create(name = name, alias = alias, email = email, password = password, date_of_birth = date_of_birth)
         request.session['user_id'] = result.id
         return redirect('/friends')
 
 
 def friends(request):
-    user = models.Users.objects.get(id = request.session['user_id'])
-    others = models.Users.objects.exclude(id = user.id)
-    friends = models.Friends.objects.filter(user_id = models.Users.objects.get(id=others))
+    user = Users.objects.get(id = request.session['user_id'])
+    friend = Friends.objects.filter(user_id = user.id)
+    me = Friends.objects.filter(friend_id = user.id)
+    others = Users.objects.exclude(id = user.id).exclude(friend__in = friend)
     context = {
             'user' : user,
             'others' : others,
-            'friends' : friends
+            'friends' : friend
     }
     return render(request, 'friends/friends.html', context)
 
+
 def profile(request, id):
-    details = models.Users.objects.get(id = id)
+    details = Users.objects.get(id = id)
     context = {
         'details' : details
     }
     return render(request, 'friends/profile.html', context)
 
 def add_friend(request, id):
-    friend = models.Friends.objects.create(user_id = models.Users.objects.get(id = id))
+    friend = Friends.objects.create(user_id = Users.objects.get(id =request.session['user_id']), friend_id = Users.objects.get(id = id))
+    if friend:
+        print True
+    else:
+        print False
     return redirect('/friends')
 
 def remove_friend(request,id):
-    models.Friends.objects.get(id=id).delete()
+    Friends.objects.get(id=id).delete()
     return redirect('/friends')
 
 def logout(request):

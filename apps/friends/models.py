@@ -17,4 +17,5 @@ class Users(models.Model):
 # #     user_id = models.ForeignKey(Users)
 #
 class Friends(models.Model):
-    user_id = models.ForeignKey(Users)
+    user_id = models.ForeignKey(Users, null = True, blank = True)
+    friend_id = models.ForeignKey(Users, related_name = 'friend', null = True, blank = True)
